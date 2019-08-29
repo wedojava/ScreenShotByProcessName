@@ -7,7 +7,7 @@ It will get all process names every 2 second.
 
 In default, only one param follow the command, it can capture 200 pictures then exit.
 
-While capture successfuly, at the same path a folder named `ScrS` can be create and some pictures saved.
+While capture successfuly, pictures can be saved at the path where ScreenShotByProcessName.exe is.
 
 Pictures' name is the keyword/param you set,like Chrome1.jpg, Chrome2.jpg...
 
@@ -42,6 +42,7 @@ ScreenShotByProcessName.exe Chrome
 
 ## Notice
 
-It can not return any error at all.
+It can not return any error at all, except stat occur, it means convert from bmp to png error, what the stat number meaning you can reference:
+[Status Enumeration](https://docs.microsoft.com/en-us/windows/win32/api/gdiplustypes/ne-gdiplustypes-status), such as `stat = 2` means `InvalidParameter`.
 
-If want to catch the error, just debug source.
+If you want to catch other errors, just debug from source code.

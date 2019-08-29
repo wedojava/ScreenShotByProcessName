@@ -54,7 +54,12 @@ int main(int argc, char* argv[])
 	{
 		captureTimes = strtol(argv[2], &p, 10);
 	}
-	JustDoIt((char*)".\\ScrS\\", argv[1], captureTimes);
+	// if set folder to save pictures may occur error in some system, but don't know why,
+	// by stat returned 2 means InvalidParameter, I guess set save path to "" may fix the bug unperfectly. 
+	// all the stat num's meaning can refer:
+	// https://docs.microsoft.com/en-us/windows/win32/api/gdiplustypes/ne-gdiplustypes-status
+	// JustDoIt((char*)".\\PrtSc\\", argv[1], captureTimes);  // Save png to PrtSc folder
+	JustDoIt((char*)"", argv[1], captureTimes);
 	return 0;
 }
 
@@ -141,6 +146,10 @@ int ScreenShot(CHAR* dirPath, CHAR* filename)
 			remove(filepath);
 		}
 	}
+	if (flag == 1)
+	{
+		printf("[-]  Failure: convert bmp to png false.");
+	}
 	return 0;
 }
 
@@ -169,15 +178,12 @@ INT Convert2png(CHAR* dirPath, CHAR* filename)
 	swprintf(wfilepath, L"%hs", filepath);
 	stat = image->Save(wfilepath, &encoderClsid, NULL);
 	delete image;
-	sprintf(filepath, "%s%s%s", dirPath, filename, ".bmp");
-	if (!_access(filepath, R_OK))
-	{
-		remove(filepath);
-	}
 	GdiplusShutdown(gdiplusToken);
 	if (stat != Ok)
 	{
-		printf("Failure: stat = %d\n", stat);
+		// stat meaning reference:
+		// https://docs.microsoft.com/en-us/windows/win32/api/gdiplustypes/ne-gdiplustypes-status
+		printf("[-] Failure: stat = %d\n", stat);
 		return 1;
 	}
 	return 0;
