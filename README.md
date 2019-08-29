@@ -13,7 +13,7 @@ Pictures' name is the keyword/param you set,like Chrome1.jpg, Chrome2.jpg...
 
 ## Why VC6.0
 
-Also, I consider windows XP SP3 can run it well, sometimes, program via VC6.0 can achive my goal.
+Also, I consider windows XP SP3 can run it well, sometimes, program via VC6.0 can achieve my goal.
 
 ## Passed test platform
 
