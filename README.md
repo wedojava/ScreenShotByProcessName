@@ -42,7 +42,11 @@ ScreenShotByProcessName.exe Chrome
 
 ## Notice
 
-It can not return any error at all, except stat occur, it means convert from bmp to png error, what the stat number meaning you can reference:
+error stat number meaning you can reference:
 [Status Enumeration](https://docs.microsoft.com/en-us/windows/win32/api/gdiplustypes/ne-gdiplustypes-status), such as `stat = 2` means `InvalidParameter`.
 
-If you want to catch other errors, just debug from source code.
+## ChangeLog
+
+- add judgment for args, without keyword follow, the program will exit directly.
+- add judgment for `CaptureImage()`, if none bmp file captured, `Convert2png()` will exit directly.
+- add error print for `CaptureImage()` while `WriteFile()`

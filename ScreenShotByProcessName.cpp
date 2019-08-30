@@ -32,7 +32,7 @@ int					ScreenShot(CHAR* dirPath, CHAR* filename);
 int					DirCreate(string path);
 int					JustDoIt(char* savePath, char* keyword, int capTimes);
 int					main(int argc, char* argv[]);
-string				winNames = "";
+string				processNames = "";
 
 
 int APIENTRY WinMain(HINSTANCE hInstance,
@@ -48,6 +48,10 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
 int main(int argc, char* argv[])
 {
+	if (argc == 1)
+	{
+		return 0;
+	}
 	int captureTimes = 200;
 	char* p;
 	if (argc == 3)
@@ -59,7 +63,7 @@ int main(int argc, char* argv[])
 	// all the stat num's meaning can refer:
 	// https://docs.microsoft.com/en-us/windows/win32/api/gdiplustypes/ne-gdiplustypes-status
 	// JustDoIt((char*)".\\PrtSc\\", argv[1], captureTimes);  // Save png to PrtSc folder
-	JustDoIt((char*)"", argv[1], captureTimes);
+	JustDoIt((char*)".\\", argv[1], captureTimes);
 	return 0;
 }
 
@@ -75,13 +79,12 @@ int JustDoIt(char* savePath, char* keyword, int capTimes)
 	int i = 1;
 	while (true)
 	{
-		winNames = "";  // init windows processes names
+		processNames = "";  // init windows processes names
 		if(!GetProcessList())
 		{
 			return -1;
 		}
-		int ifHasKeyword = winNames.find(keyword);
-		if (ifHasKeyword != -1)
+		if (processNames.find(keyword) != -1)  // winNames.find(keyword) == -1 means found none.
 		{
 			sprintf(filenameMerged, "%s%d", filename, i);  // filenameMerged = filename + i
 			ScreenShot(savePath, filenameMerged);
@@ -97,10 +100,9 @@ int JustDoIt(char* savePath, char* keyword, int capTimes)
 
 int DirCreate(string path)
 {
-	if (_access(path.c_str(), R_OK) == -1)  // if _access(path.c_str(), R_OK) == 0 the folder exist!
+	if (_access(path.c_str(), R_OK))  // -1: not exist, 0: exist!
 	{
-		int flag = _mkdir(path.c_str());
-		return flag;
+		return _mkdir(path.c_str());
 	}
 	return 0;
 }
@@ -126,7 +128,7 @@ BOOL GetProcessList()
 	do
 	{
 		// printf( TEXT("\nPROCESS NAME:  %s"), pe32.szExeFile );
-		winNames = winNames + " | " + pe32.szExeFile;
+		processNames = processNames + " | " + pe32.szExeFile;
 	} while (Process32Next(hProcessSnap, &pe32));
 
 	CloseHandle(hProcessSnap);
@@ -135,9 +137,8 @@ BOOL GetProcessList()
 
 int ScreenShot(CHAR* dirPath, CHAR* filename)
 {
-	CaptureImage(GetDesktopWindow(), dirPath, filename); // 保存为 E:hello.bmp
-	INT flag = Convert2png(dirPath, filename);
-	if (flag == 0)
+	CaptureImage(GetDesktopWindow(), dirPath, filename);  // capture and save as diaPath + filename.bmp
+	if (!Convert2png(dirPath, filename))  // if convert to png success return 0
 	{
 		char filepath[256] = { 0 };
 		sprintf(filepath, "%s%s%s", dirPath, filename, ".bmp");
@@ -145,12 +146,10 @@ int ScreenShot(CHAR* dirPath, CHAR* filename)
 		{
 			remove(filepath);
 		}
+		return 0;
 	}
-	if (flag == 1)
-	{
-		printf("[-]  Failure: convert bmp to png false.");
-	}
-	return 0;
+	printf("[-] Failure: convert bmp to png false.");
+	return 1;
 }
 
 // By reference:
@@ -167,6 +166,11 @@ INT Convert2png(CHAR* dirPath, CHAR* filename)
 	char filepath[100] = { 0 };
 	wchar_t* wfilepath = new wchar_t[50];
 	sprintf(filepath, "%s%s%s", dirPath, filename, ".bmp");
+	if (_access(filepath, R_OK))  // if file is not exist!
+	{
+		printf("[-] Failure: %d not exist, convert action stoped!\n", filepath);
+		return -1;
+	}
 	swprintf(wfilepath, L"%hs", filepath);
 	Image* image = new Image(wfilepath);
 
@@ -184,7 +188,7 @@ INT Convert2png(CHAR* dirPath, CHAR* filename)
 		// stat meaning reference:
 		// https://docs.microsoft.com/en-us/windows/win32/api/gdiplustypes/ne-gdiplustypes-status
 		printf("[-] Failure: stat = %d\n", stat);
-		return 1;
+		return -1;
 	}
 	return 0;
 }
@@ -339,7 +343,7 @@ int CaptureImage(HWND hwnd, CHAR* dirPath, CHAR* filename)
 	);
 
 
-	wsprintf(FilePath, "%s\%s.bmp", dirPath, filename);
+	wsprintf(FilePath, "%s%s.bmp", dirPath, filename);
 
 	// 创建一个文件来保存文件截图
 	hFile = CreateFile(
@@ -365,9 +369,15 @@ int CaptureImage(HWND hwnd, CHAR* dirPath, CHAR* filename)
 	bmfHeader.bfType = 0x4D42; //BM
 
 	dwBytesWritten = 0;
-	WriteFile(hFile, (LPSTR)& bmfHeader, sizeof(BITMAPFILEHEADER), &dwBytesWritten, NULL);
-	WriteFile(hFile, (LPSTR)& bi, sizeof(BITMAPINFOHEADER), &dwBytesWritten, NULL);
-	WriteFile(hFile, (LPSTR)lpbitmap, dwBmpSize, &dwBytesWritten, NULL);
+	if (!WriteFile(hFile, (LPSTR)& bmfHeader, sizeof(BITMAPFILEHEADER), &dwBytesWritten, NULL)){
+		printf("[-] Failure: WriteFile() 1st step error!");
+	}
+	if (WriteFile(hFile, (LPSTR)& bi, sizeof(BITMAPINFOHEADER), &dwBytesWritten, NULL)){
+		printf("[-] Failure: WriteFile() 2nd step error!");
+	}
+	if (WriteFile(hFile, (LPSTR)lpbitmap, dwBmpSize, &dwBytesWritten, NULL)){
+		printf("[-] Failure: WriteFile() 3rn step error!");
+	}
 
 	// 解锁堆内存并释放
 	GlobalUnlock(hDIB);
