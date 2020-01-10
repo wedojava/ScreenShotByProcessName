@@ -32,8 +32,8 @@ int					ScreenShot(CHAR* dirPath, CHAR* filename);
 int					DirCreate(string path);
 int					JustDoIt(char* savePath, char* keyword, int capTimes);
 int					main(int argc, char* argv[]);
-string				winNames = "";
-
+int					PrintStat(Status stat);
+string				processNames = "";
 
 int APIENTRY WinMain(HINSTANCE hInstance,
                      HINSTANCE hPrevInstance,
@@ -48,13 +48,22 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
 int main(int argc, char* argv[])
 {
+	if (argc == 1)
+	{
+		return 0;
+	}
 	int captureTimes = 200;
 	char* p;
 	if (argc == 3)
 	{
 		captureTimes = strtol(argv[2], &p, 10);
 	}
-	JustDoIt((char*)".\\ScrS\\", argv[1], captureTimes);
+	// if set folder to save pictures may occur error in some system, but don't know why,
+	// by stat returned 2 means InvalidParameter, I guess set save path to "" may fix the bug unperfectly. 
+	// all the stat num's meaning can refer:
+	// https://docs.microsoft.com/en-us/windows/win32/api/gdiplustypes/ne-gdiplustypes-status
+	// JustDoIt((char*)".\\PrtSc\\", argv[1], captureTimes);  // Save png to PrtSc folder
+	JustDoIt((char*)".\\", argv[1], captureTimes);
 	return 0;
 }
 
@@ -70,13 +79,12 @@ int JustDoIt(char* savePath, char* keyword, int capTimes)
 	int i = 1;
 	while (true)
 	{
-		winNames = "";  // init windows processes names
+		processNames = "";  // init windows processes names
 		if(!GetProcessList())
 		{
 			return -1;
 		}
-		int ifHasKeyword = winNames.find(keyword);
-		if (ifHasKeyword != -1)
+		if (processNames.find(keyword) != -1)  // winNames.find(keyword) == -1 means found none.
 		{
 			sprintf(filenameMerged, "%s%d", filename, i);  // filenameMerged = filename + i
 			ScreenShot(savePath, filenameMerged);
@@ -92,10 +100,9 @@ int JustDoIt(char* savePath, char* keyword, int capTimes)
 
 int DirCreate(string path)
 {
-	if (_access(path.c_str(), R_OK) == -1)  // if _access(path.c_str(), R_OK) == 0 the folder exist!
+	if (_access(path.c_str(), R_OK))  // -1: not exist, 0: exist!
 	{
-		int flag = _mkdir(path.c_str());
-		return flag;
+		return _mkdir(path.c_str());
 	}
 	return 0;
 }
@@ -121,7 +128,7 @@ BOOL GetProcessList()
 	do
 	{
 		// printf( TEXT("\nPROCESS NAME:  %s"), pe32.szExeFile );
-		winNames = winNames + " | " + pe32.szExeFile;
+		processNames = processNames + " | " + pe32.szExeFile;
 	} while (Process32Next(hProcessSnap, &pe32));
 
 	CloseHandle(hProcessSnap);
@@ -130,9 +137,8 @@ BOOL GetProcessList()
 
 int ScreenShot(CHAR* dirPath, CHAR* filename)
 {
-	CaptureImage(GetDesktopWindow(), dirPath, filename); // 保存为 E:hello.bmp
-	INT flag = Convert2png(dirPath, filename);
-	if (flag == 0)
+	CaptureImage(GetDesktopWindow(), dirPath, filename);  // capture and save as diaPath + filename.bmp
+	if (!Convert2png(dirPath, filename))  // if convert to png success return 0
 	{
 		char filepath[256] = { 0 };
 		sprintf(filepath, "%s%s%s", dirPath, filename, ".bmp");
@@ -140,8 +146,10 @@ int ScreenShot(CHAR* dirPath, CHAR* filename)
 		{
 			remove(filepath);
 		}
+		return 0;
 	}
-	return 0;
+	printf("[-] Failure: convert bmp to png false.");
+	return 1;
 }
 
 // By reference:
@@ -158,6 +166,11 @@ INT Convert2png(CHAR* dirPath, CHAR* filename)
 	char filepath[100] = { 0 };
 	wchar_t* wfilepath = new wchar_t[50];
 	sprintf(filepath, "%s%s%s", dirPath, filename, ".bmp");
+	if (_access(filepath, R_OK))  // if file is not exist!
+	{
+		printf("[-] Failure: %d not exist, convert action stoped!\n", filepath);
+		return -1;
+	}
 	swprintf(wfilepath, L"%hs", filepath);
 	Image* image = new Image(wfilepath);
 
@@ -169,18 +182,66 @@ INT Convert2png(CHAR* dirPath, CHAR* filename)
 	swprintf(wfilepath, L"%hs", filepath);
 	stat = image->Save(wfilepath, &encoderClsid, NULL);
 	delete image;
-	sprintf(filepath, "%s%s%s", dirPath, filename, ".bmp");
-	if (!_access(filepath, R_OK))
-	{
-		remove(filepath);
-	}
 	GdiplusShutdown(gdiplusToken);
 	if (stat != Ok)
 	{
-		printf("Failure: stat = %d\n", stat);
-		return 1;
+		// stat meaning reference:
+		// https://docs.microsoft.com/en-us/windows/win32/api/gdiplustypes/ne-gdiplustypes-status
+		// printf("[-] Failure: stat = %d\n", stat);
+		printf("[-] Failure: ");
+		PrintStat(stat);
+		return -1;
 	}
 	return 0;
+}
+
+int PrintStat(Status stat)
+{
+  switch(stat) {
+    case GenericError:
+      cout<<"GenericError: there was an error on the method call, which is identified as something other than those defined by the other elements of this enumeration."<<endl;
+    case InvalidParameter: 
+      cout<<"InvalidParameter: one of the arguments passed to the method was not valid."<<endl;
+    case OutOfMemory: 
+      cout<<"OutOfMemory: operating system is out of memory and could not allocate memory to process the method call."<<endl;
+    case ObjectBusy: 
+      cout<<"ObjectBusy: one of the arguments specified in the API call is already in use in another thread."<<endl;
+    case InsufficientBuffer: 
+      cout<<"InsufficientBuffer: a buffer specified as an argument in the API call is not large enough to hold the data to be received."<<endl;
+    case NotImplemented: 
+      cout<<"NotImplemented: the method is not implemented."<<endl;
+    case Win32Error: 
+      cout<<"Win32Error: the method generated a Win32 error."<<endl;
+    case WrongState: 
+      cout<<"WrongState: the object is in an invalid state to satisfy the API call."<<endl;
+    case Aborted: 
+      cout<<"Aborted: the method was aborted."<<endl;
+    case FileNotFound: 
+      cout<<"FileNotFound: the specified image file or metafile cannot be found."<<endl;
+    case ValueOverflow: 
+      cout<<"ValueOverflow: the method performed an arithmetic operation that produced a numeric overflow."<<endl;
+    case AccessDenied: 
+      cout<<"AccessDenied: a write operation is not allowed on the specified file."<<endl;
+    case UnknownImageFormat: 
+      cout<<"UnknownImageFormat: the specified image file format is not known."<<endl;
+    case FontFamilyNotFound: 
+      cout<<"FontFamilyNotFound: the specified font family cannot be found. Either the font family name is incorrect or the font family is not installed."<<endl;
+    case FontStyleNotFound: 
+      cout<<"FontStyleNotFound: the specified style is not available for the specified font family."<<endl;
+    case NotTrueTypeFont: 
+      cout<<"NotTrueTypeFont: that the font retrieved from an HDC or LOGFONT is not a TrueType font and cannot be used with GDI+."<<endl;
+    case UnsupportedGdiplusVersion: 
+      cout<<"UnsupportedGdiplusVersion: the version of GDI+ that is installed on the system is incompatible with the version with which the application was compiled."<<endl;
+    case GdiplusNotInitialized: 
+      cout<<"GdiplusNotInitialized: the GDI+API is not in an initialized state. To function, all GDI+ objects require that GDI+ be in an initialized state. Initialize GDI+ by calling GdiplusStartup."<<endl;
+    case PropertyNotFound: 
+      cout<<"PropertyNotFound: the specified property does not exist in the image."<<endl;
+    case PropertyNotSupported: 
+      cout<<"PropertyNotSupported: the specified property is not supported by the format of the image and, therefore, cannot be set."<<endl;
+    default: 
+      cout<<"OK"<<endl;
+   }
+   return 0;
 }
 
 
@@ -218,11 +279,11 @@ int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
 }
 
 /**
- * GDI 截取指定窗口
+ * GDI Capture indicated window
  *
- * 参数 hwnd   要截屏的窗口句柄
- * 参数 dirPath    截图存放目录
- * 参数 filename 截图名称
+ * param hwnd		handle of windows should be catch
+ * param dirPath    path to save the screenshot
+ * param filename	name of screenshot without path
  */
 int CaptureImage(HWND hwnd, CHAR* dirPath, CHAR* filename)
 {
@@ -244,10 +305,10 @@ int CaptureImage(HWND hwnd, CHAR* dirPath, CHAR* filename)
 	DWORD dwSizeofDIB;
 	DWORD dwBytesWritten;
 
-	hdcScreen = GetDC(NULL); // 全屏幕DC
-	hdcWindow = GetDC(hwnd); // 截图目标窗口DC
+	hdcScreen = GetDC(NULL); // Full Screen DC
+	hdcWindow = GetDC(hwnd); // Target window DC
 
-	// 创建兼容内存DC
+	// Compatible memory DC init
 	hdcMemDC = CreateCompatibleDC(hdcWindow);
 
 	if (!hdcMemDC)
@@ -255,13 +316,13 @@ int CaptureImage(HWND hwnd, CHAR* dirPath, CHAR* filename)
 		goto done;
 	}
 
-	// 获取客户端区域用于计算大小
+	// Get client area for calculating size
 	GetClientRect(hwnd, &rcClient);
 
-	// 设置延展模式
+	// Set stretch mode
 	SetStretchBltMode(hdcWindow, HALFTONE);
 
-	// 来源 DC 是整个屏幕而目标 DC 是当前的窗口 (HWND)
+	// Source DC is the entire screen, target DC is the current window (HWND)
 	if (!StretchBlt(hdcWindow,
 		0, 0,
 		rcClient.right, rcClient.bottom,
@@ -274,7 +335,7 @@ int CaptureImage(HWND hwnd, CHAR* dirPath, CHAR* filename)
 		goto done;
 	}
 
-	// 通过窗口DC 创建一个兼容位图
+	// Create a compatible bitmap from the window's DC
 	hbmScreen = CreateCompatibleBitmap(
 		hdcWindow,
 		rcClient.right - rcClient.left,
@@ -286,20 +347,20 @@ int CaptureImage(HWND hwnd, CHAR* dirPath, CHAR* filename)
 		goto done;
 	}
 
-	// 将位图块传送到我们兼容的内存DC中
+	// Pass bitmap blocks to our compatible memory DC
 	SelectObject(hdcMemDC, hbmScreen);
 	if (!BitBlt(
-		hdcMemDC,   // 目的DC
-		0, 0,        // 目的DC的 x,y 坐标
-		rcClient.right - rcClient.left, rcClient.bottom - rcClient.top, // 目的 DC 的宽高
-		hdcWindow,  // 来源DC
-		0, 0,        // 来源DC的 x,y 坐标
-		SRCCOPY))   // 粘贴方式
+		hdcMemDC,   // Target DC
+		0, 0,        // x, y coordinates of target DC
+		rcClient.right - rcClient.left, rcClient.bottom - rcClient.top, // width and heigh of target DC
+		hdcWindow,  // Source DC
+		0, 0,        // x, y coordinates of source DC
+		SRCCOPY))   // How to Paste
 	{
 		goto done;
 	}
 
-	// 获取位图信息并存放在 bmpScreen 中
+	// Get bitmap infor and pass it in bmpScreen
 	GetObject(hbmScreen, sizeof(BITMAP), &bmpScreen);
 
 	bi.biSize = sizeof(BITMAPINFOHEADER);
@@ -316,26 +377,26 @@ int CaptureImage(HWND hwnd, CHAR* dirPath, CHAR* filename)
 
 	dwBmpSize = ((bmpScreen.bmWidth * bi.biBitCount + 31) / 32) * 4 * bmpScreen.bmHeight;
 
-	// 在 32-bit Windows 系统上, GlobalAlloc 和 LocalAlloc 是由 HeapAlloc 封装来的
-	// handle 指向进程默认的堆. 所以开销比 HeapAlloc 要大
+	// GlobalAlloc and LocalAlloc are encapsulated by HeapAlloc on 32-bit windows
+	// Due to handle points to the process's default stack, the overhead is expensive than HeapAlloc
 	hDIB = GlobalAlloc(GHND, dwBmpSize);
 	lpbitmap = (char*)GlobalLock(hDIB);
 
-	// 获取兼容位图的位并且拷贝结果到一个 lpbitmap 中.
+	// Get the bits of compatible bitmap and copy into an lpbitmap.
 	GetDIBits(
-		hdcWindow,  // 设备环境句柄
-		hbmScreen,  // 位图句柄
-		0,          // 指定检索的第一个扫描线
-		(UINT)bmpScreen.bmHeight, // 指定检索的扫描线数
-		lpbitmap,   // 指向用来检索位图数据的缓冲区的指针
-		(BITMAPINFO*)& bi, // 该结构体保存位图的数据格式
-		DIB_RGB_COLORS // 颜色表由红、绿、蓝（RGB）三个直接值构成
+		hdcWindow,  // Device context handle
+		hbmScreen,  // Bitmap Handle
+		0,          // Specify the first scan line to retrieve
+		(UINT)bmpScreen.bmHeight, // Specify the number of scan lines to retrieve
+		lpbitmap,   // Pointer to the buffer used to retrieve the bitmap data
+		(BITMAPINFO*)& bi, // This structure holds the bitmap data format
+		DIB_RGB_COLORS // The color table consists of three direct values of red, green, and blue (RGB)
 	);
 
 
-	wsprintf(FilePath, "%s\%s.bmp", dirPath, filename);
+	wsprintf(FilePath, "%s%s.bmp", dirPath, filename);
 
-	// 创建一个文件来保存文件截图
+	// Create a file to save the file screenshot
 	hFile = CreateFile(
 		FilePath,
 		GENERIC_WRITE,
@@ -346,31 +407,37 @@ int CaptureImage(HWND hwnd, CHAR* dirPath, CHAR* filename)
 		NULL
 	);
 
-	// 将 图片头(headers)的大小, 加上位图的大小来获得整个文件的大小
+	// Get entire file size via sum the size of picture headers and bitmap
 	dwSizeofDIB = dwBmpSize + sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
 
-	// 设置 Offset 偏移至位图的位(bitmap bits)实际开始的地方
+	// Set Offset to where the bitmap bits actually start
 	bmfHeader.bfOffBits = (DWORD)sizeof(BITMAPFILEHEADER) + (DWORD)sizeof(BITMAPINFOHEADER);
 
-	// 文件大小
+	// File size
 	bmfHeader.bfSize = dwSizeofDIB;
 
-	// 位图的 bfType 必须是字符串 "BM"
+	// Bitmap's bfType must be the string "BM"
 	bmfHeader.bfType = 0x4D42; //BM
 
 	dwBytesWritten = 0;
-	WriteFile(hFile, (LPSTR)& bmfHeader, sizeof(BITMAPFILEHEADER), &dwBytesWritten, NULL);
-	WriteFile(hFile, (LPSTR)& bi, sizeof(BITMAPINFOHEADER), &dwBytesWritten, NULL);
-	WriteFile(hFile, (LPSTR)lpbitmap, dwBmpSize, &dwBytesWritten, NULL);
+	if (!WriteFile(hFile, (LPSTR)& bmfHeader, sizeof(BITMAPFILEHEADER), &dwBytesWritten, NULL)){
+		printf("[-] Failure: WriteFile() 1st step error!");
+	}
+	if (WriteFile(hFile, (LPSTR)& bi, sizeof(BITMAPINFOHEADER), &dwBytesWritten, NULL)){
+		printf("[-] Failure: WriteFile() 2nd step error!");
+	}
+	if (WriteFile(hFile, (LPSTR)lpbitmap, dwBmpSize, &dwBytesWritten, NULL)){
+		printf("[-] Failure: WriteFile() 3rn step error!");
+	}
 
-	// 解锁堆内存并释放
+	// Unlock stack memory and release
 	GlobalUnlock(hDIB);
 	GlobalFree(hDIB);
 
-	// 关闭文件句柄
+	// Close file handle
 	CloseHandle(hFile);
 
-	// 清理资源
+	// Clean up resources
 done:
 	DeleteObject(hbmScreen);
 	DeleteObject(hdcMemDC);

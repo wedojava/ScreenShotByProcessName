@@ -7,13 +7,13 @@ It will get all process names every 2 second.
 
 In default, only one param follow the command, it can capture 200 pictures then exit.
 
-While capture successfuly, at the same path a folder named `ScrS` can be create and some pictures saved.
+While capture successfuly, pictures can be saved at the path where ScreenShotByProcessName.exe is.
 
 Pictures' name is the keyword/param you set,like Chrome1.jpg, Chrome2.jpg...
 
 ## Why VC6.0
 
-Also, I consider windows XP SP3 can run it well, sometimes, program via VC6.0 can achive my goal.
+Also, I consider windows XP SP3 can run it well, sometimes, program via VC6.0 can achieve my goal.
 
 ## Passed test platform
 
@@ -42,6 +42,11 @@ ScreenShotByProcessName.exe Chrome
 
 ## Notice
 
-It can not return any error at all.
+error stat number meaning you can reference:
+[Status Enumeration](https://docs.microsoft.com/en-us/windows/win32/api/gdiplustypes/ne-gdiplustypes-status), such as `stat = 2` means `InvalidParameter`.
 
-If want to catch the error, just debug source.
+## ChangeLog
+
+- add judgment for args, without keyword follow, the program will exit directly.
+- add judgment for `CaptureImage()`, if none bmp file captured, `Convert2png()` will exit directly.
+- add error print for `CaptureImage()` while `WriteFile()`
