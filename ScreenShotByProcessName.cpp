@@ -32,8 +32,13 @@ int					ScreenShot(CHAR* dirPath, CHAR* filename);
 int					DirCreate(string path);
 int					JustDoIt(char* savePath, char* keyword, int capTimes);
 int					main(int argc, char* argv[]);
+<<<<<<< HEAD
 int					PrintStat(Status stat);
 string				processNames = "";
+=======
+string				processNames = "";
+
+>>>>>>> 680cedf5b1c5f8d609465bef40f097e0f38ab066
 
 int APIENTRY WinMain(HINSTANCE hInstance,
                      HINSTANCE hPrevInstance,
@@ -187,9 +192,13 @@ INT Convert2png(CHAR* dirPath, CHAR* filename)
 	{
 		// stat meaning reference:
 		// https://docs.microsoft.com/en-us/windows/win32/api/gdiplustypes/ne-gdiplustypes-status
+<<<<<<< HEAD
 		// printf("[-] Failure: stat = %d\n", stat);
 		printf("[-] Failure: ");
 		PrintStat(stat);
+=======
+		printf("[-] Failure: stat = %d\n", stat);
+>>>>>>> 680cedf5b1c5f8d609465bef40f097e0f38ab066
 		return -1;
 	}
 	return 0;
